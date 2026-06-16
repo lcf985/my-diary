@@ -738,13 +738,14 @@ const GitHubService = {
   TOKEN_KEY: 'diary_gh_token',
   OWNER_KEY: 'diary_gh_owner',
   REPO_KEY: 'diary_gh_repo',
+  FIXED_KEY: '9852',
 
   getToken() { return localStorage.getItem(this.TOKEN_KEY) || ''; },
   setToken(t) { localStorage.setItem(this.TOKEN_KEY, t); },
   hasToken() { return !!this.getToken(); },
   clearToken() { localStorage.removeItem(this.TOKEN_KEY); },
 
-  // Auto-detect repo info from URL (GitHub Pages format: owner.github.io/repo)
+  // Auto-detect repo info from URL
   getRepoInfo() {
     let owner = localStorage.getItem(this.OWNER_KEY) || '';
     let repo = localStorage.getItem(this.REPO_KEY) || '';
@@ -755,11 +756,6 @@ const GitHubService = {
         owner = host.replace('.github.io', '');
       }
       repo = path.replace(/^\/+|\/+$/g, '').split('/')[0] || '';
-      if (!repo && path === '/') {
-        // Try to guess from host (e.g. reponame.owner.github.io style)
-        const parts = host.split('.');
-        if (parts.length >= 3) repo = parts[0];
-      }
     }
     return { owner, repo };
   },
@@ -769,7 +765,24 @@ const GitHubService = {
     localStorage.setItem(this.REPO_KEY, repo);
   },
 
-  // Read data.json from GitHub
+  // Simple encrypt/decrypt (XOR with key) for token obfuscation
+  _encrypt(text) {
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+      result += String.fromCharCode(text.charCodeAt(i) ^ this.FIXED_KEY.charCodeAt(i % this.FIXED_KEY.length));
+    }
+    return btoa(result);
+  },
+  _decrypt(b64) {
+    const encoded = atob(b64);
+    let result = '';
+    for (let i = 0; i < encoded.length; i++) {
+      result += String.fromCharCode(encoded.charCodeAt(i) ^ this.FIXED_KEY.charCodeAt(i % this.FIXED_KEY.length));
+    }
+    return result;
+  },
+
+  // Read data.json from GitHub API (authenticated)
   async fetchEntries() {
     const token = this.getToken();
     const { owner, repo } = this.getRepoInfo();
@@ -787,18 +800,32 @@ const GitHubService = {
     }
 
     const data = await res.json();
-    // Content is base64 encoded
     const content = JSON.parse(atob(data.content));
-    return { entries: Array.isArray(content) ? content : [], sha: data.sha, exists: true };
+    // Support both old format (plain array) and new format { entries, _t }
+    const isOldFormat = Array.isArray(content);
+    const entries = isOldFormat ? content : (content.entries || []);
+    // Auto-extract token from data if present
+    if (!isOldFormat && content._t && !this.getToken()) {
+      try {
+        const decrypted = this._decrypt(content._t);
+        if (decrypted) {
+          this.setToken(decrypted);
+          Store.set('hasToken', true);
+        }
+      } catch(e) { /* ignore decrypt errors */ }
+    }
+    return { entries, sha: data.sha, exists: true };
   },
 
-  // Push entries to GitHub (return new sha)
+  // Push entries to GitHub
   async pushEntries(entries, sha) {
     const token = this.getToken();
     const { owner, repo } = this.getRepoInfo();
     if (!owner || !repo) throw new Error('请先设置仓库信息');
 
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(entries, null, 2))));
+    // Always include encrypted token in the payload
+    const payload = { entries, _t: this._encrypt(token) };
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
     const body = { message: 'Update diary data', content };
     if (sha) body.sha = sha;
 
@@ -809,7 +836,6 @@ const GitHubService = {
     });
 
     if (res.status === 409) {
-      // Conflict: someone else pushed. Fetch latest and merge.
       const latest = await this.fetchEntries();
       const merged = this._mergeEntries(latest.entries, entries);
       return this.pushEntries(merged, latest.sha);
@@ -824,7 +850,37 @@ const GitHubService = {
     return data.content ? data.content.sha : (data.sha || null);
   },
 
-  // Merge: keep entries from both, prefer later updatedAt for same id
+  // Try to auto-setup token from raw URL (no auth needed for public repos)
+  async tryAutoSetup() {
+    if (this.hasToken()) return true;
+    const { owner, repo } = this.getRepoInfo();
+    if (!owner || !repo) return false;
+
+    try {
+      const url = `https://raw.githubusercontent.com/${owner}/${repo}/main/data.json`;
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (!res.ok) return false;
+      const text = await res.text();
+      const content = JSON.parse(text);
+      // Support both old and new formats
+      const isOldFormat = Array.isArray(content);
+      if (!isOldFormat && content._t) {
+        const decrypted = this._decrypt(content._t);
+        if (decrypted && (decrypted.startsWith('ghp_') || decrypted.startsWith('github_pat_'))) {
+          this.setToken(decrypted);
+          this.setRepoInfo(owner, repo);
+          Store.set('hasToken', true);
+          Store.set('syncStatus', 'syncing');
+          updateSyncDot();
+          return true;
+        }
+      }
+      return false;
+    } catch(e) {
+      return false;
+    }
+  },
+
   _mergeEntries(remote, local) {
     const map = new Map();
     for (const e of remote) map.set(e.id, e);
@@ -1293,20 +1349,19 @@ function showSettings() {
 
   card.innerHTML = `
     <h2>⚙️ GitHub 同步设置</h2>
-    <p class="settings-subtitle">配置后，所有设备可共享同一份日记数据。</p>
+    <p class="settings-subtitle">Token 会自动同步到其他设备，每台设备只需在首次打开时稍等片刻即可自动获取。</p>
     <label>GitHub Personal Access Token</label>
-    <input type="password" id="set-token" placeholder="${hasToken ? '已保存 (如需更换请输入新Token)' : 'github_pat_xxxxxxxx'}" autocomplete="off">
+    <input type="password" id="set-token" placeholder="${hasToken ? '✅ 已配置 (更换请输入新Token)' : 'ghp_xxxxxxxxxxxxxxxx'}" autocomplete="off">
     <div class="settings-hint">
-      如何获取？打开 <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens</a> →
-      Generate new token → Contents: <b>Read and Write</b> → 仅限本仓库
+      <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">创建 Token</a> →
+      Generate new token (classic) → 勾选 <b>repo</b> → 复制粘贴到上方
     </div>
-    <label>仓库 Owner (用户名)</label>
-    <input type="text" id="set-owner" placeholder="${owner || 'your-username'}" value="${owner}">
-    <label>仓库名 (Repo)</label>
-    <input type="text" id="set-repo" placeholder="${repo || 'repo-name'}" value="${repo}">
+    <label>Owner / Repo (自动识别)</label>
+    <input type="text" id="set-owner" value="${owner}" placeholder="用户名" style="width:48%;display:inline-block;margin-right:4%">
+    <input type="text" id="set-repo" value="${repo}" placeholder="仓库名" style="width:48%;display:inline-block">
     <div class="settings-actions">
       ${hasToken ? '<button class="btn btn-secondary btn-sm" id="btn-clear-token">清除 Token</button>' : ''}
-      <button class="btn btn-secondary btn-sm" data-action="close-settings">取消</button>
+      <button class="btn btn-secondary btn-sm" data-action="close-settings">关闭</button>
       <button class="btn btn-primary btn-sm" id="btn-save-settings">保存并同步</button>
     </div>
     <div class="settings-status" id="settings-status"></div>
@@ -1346,25 +1401,21 @@ function showSettings() {
       const { entries, sha, exists } = await GitHubService.fetchEntries();
       Store._cachedSha = sha;
       if (!exists) {
-        // File doesn't exist yet — push local data up
         const local = EntryService.loadAll();
         const newSha = await GitHubService.pushEntries(local, null);
         Store._cachedSha = newSha;
         Store.set('entries', local);
         Store.set('syncStatus', 'synced');
-        statusEl.textContent = '✅ 已创建同步文件，' + local.length + ' 条日记已上传';
+        statusEl.textContent = '✅ 已创建同步文件！' + local.length + ' 条日记已上传。Token 已保存，其他设备打开网页将自动同步。';
         statusEl.className = 'settings-status';
         refreshUI();
-        setTimeout(() => hideSettings(), 1500);
       } else {
-        // Remote data exists — use it as source of truth
         EntryService.saveAll(entries);
         Store.set('entries', entries);
         Store.set('syncStatus', 'synced');
-        statusEl.textContent = '✅ 同步成功！已加载 ' + entries.length + ' 条日记';
+        statusEl.textContent = '✅ 同步成功！已加载 ' + entries.length + ' 条日记。Token 已保存到云端。';
         statusEl.className = 'settings-status';
         refreshUI();
-        setTimeout(() => hideSettings(), 1500);
       }
     } catch(err) {
       statusEl.textContent = '❌ ' + err.message;
@@ -1374,7 +1425,6 @@ function showSettings() {
     }
   });
 
-  // Clear token handler
   const clearBtn = document.getElementById('btn-clear-token');
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
@@ -1382,7 +1432,7 @@ function showSettings() {
       Store.set('hasToken', false);
       Store.set('syncStatus', 'none');
       updateSyncDot();
-      showSettings(); // Re-render the dialog
+      showSettings();
       ToastRenderer.show('Token 已清除', 'info');
     });
   }
@@ -1680,24 +1730,31 @@ function updateSyncDot() {
 }
 
 async function init() {
-  // Set initial date
   Store.init();
-
-  // Check session
   const isAuth = PasswordService.isSessionActive();
   Store.set('isAuthenticated', isAuth);
+
+  // Step 1: Try auto-setup token from raw URL (new device, no manual entry needed)
+  if (!GitHubService.hasToken()) {
+    Store.set('syncStatus', 'syncing');
+    updateSyncDot();
+    const autoSetup = await GitHubService.tryAutoSetup();
+    if (autoSetup) {
+      console.log('📖 自动获取 Token 成功！');
+    }
+  }
 
   const hasToken = GitHubService.hasToken();
   Store.set('hasToken', hasToken);
 
+  // Step 2: Pull from GitHub if token available
   if (hasToken) {
-    // Try to pull from GitHub
     Store.set('syncStatus', 'syncing');
+    updateSyncDot();
     try {
       const { entries, sha, exists } = await GitHubService.fetchEntries();
       Store._cachedSha = sha;
       if (!exists) {
-        // File doesn't exist on GitHub yet — push local data up
         const local = EntryService.loadAll();
         if (local.length > 0) {
           const newSha = await GitHubService.pushEntries(local, null);
@@ -1705,7 +1762,6 @@ async function init() {
         }
         Store.set('entries', local);
       } else {
-        // Use remote data as source of truth
         EntryService.saveAll(entries);
         Store.set('entries', entries);
       }
@@ -1715,27 +1771,19 @@ async function init() {
       console.warn('GitHub pull failed, using local cache:', err.message);
       const entries = EntryService.loadAll();
       Store.set('entries', entries);
-      if (err.message.includes('Token')) {
-        Store.set('syncStatus', 'error');
-      } else {
-        Store.set('syncStatus', 'offline');
-      }
+      Store.set('syncStatus', err.message.includes('Token') ? 'error' : 'offline');
     }
   } else {
-    // No token, use local storage
     const entries = EntryService.loadAll();
     Store.set('entries', entries);
     Store.set('syncStatus', 'none');
   }
 
-  // Render
   refreshUI();
 
   console.log('📖 日记应用已就绪');
-  console.log('  密码: 9852');
-  console.log('  ' + Store.get('entries').length + ' 条日记');
-  console.log('  ' + (isAuth ? '已解锁编辑' : '只读模式'));
-  console.log('  GitHub 同步: ' + (hasToken ? '已配置' : '未设置'));
+  console.log('  密码: 9852 | ' + Store.get('entries').length + ' 条日记');
+  console.log('  GitHub 同步: ' + (hasToken ? '已配置 ✓' : '未设置'));
 }
 
 // Start
