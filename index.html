@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的日记 · My Diary</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #5B8C5A;
+            --primary-light: #E8F5E9;
+            --primary-dark: #3D6B3C;
+            --accent: #D4A574;
+            --accent-light: #F5E6D3;
+            --bg: #F7F5F0;
+            --card-bg: #FFFFFF;
+            --text: #2C3E2D;
+            --text-secondary: #7D8B7E;
+            --border: #E0E6E0;
+            --shadow: 0 4px 20px rgba(44,62,45,0.08);
+            --shadow-hover: 0 8px 30px rgba(44,62,45,0.12);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 24px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .header .subtitle {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-top: 2px;
+            font-weight: 300;
+        }
+
+        .btn-add {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-add:hover {
+            background: rgba(255,255,255,0.35);
+            transform: scale(1.1) rotate(90deg);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Calendar Section */
+        .calendar-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .month-nav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .nav-btn {
+            background: var(--primary-light);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--primary);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .current-month {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text);
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .today-btn {
+            background: var(--accent-light);
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--accent);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .today-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Calendar Grid */
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .weekday {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            padding: 8px 0;
+        }
+
+        .weekday.weekend {
+            color: #C0392B;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            border-radius: var(--radius-sm);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            background: var(--bg);
+            border: 2px solid transparent;
+        }
+
+        .calendar-day:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+            border-color: var(--primary-light);
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .calendar-day.today {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            font-weight: 700;
+        }
+
+        .calendar-day.has-entry {
+            background: var(--accent-light);
+        }
+
+        .calendar-day .day-number {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .calendar-day .day-emoji {
+            font-size: 1.3rem;
+            line-height: 1;
+            transition: transform 0.2s ease;
+        }
+
+        .calendar-day:hover .day-emoji {
+            transform: scale(1.2);
+        }
+
+        .calendar-day .entry-count {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: var(--primary);
+            color: white;
+            font-size: 0.6rem;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        /* Diary List Section */
+        .diary-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow);
+            min-height: 300px;
+        }
+
+        .section-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .emoji {
+            font-size: 1.3rem;
+        }
+
+        .diary-group {
+            margin-bottom: 24px;
+        }
+
+        .diary-date-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--primary-light);
+        }
+
+        .date-badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .date-weekday {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .diary-card {
+            background: var(--bg);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            border-left: 3px solid var(--accent);
+            position: relative;
+        }
+
+        .diary-card:hover {
+            transform: translateX(4px);
+            box-shadow: var(--shadow-hover);
+            border-left-color: var(--primary);
+        }
+
+        .diary-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .diary-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .diary-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            margin-left: 8px;
+        }
+
+        .diary-preview {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .diary-emoji {
+            font-size: 1.2rem;
+            margin-right: 6px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .emoji {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            display: block;
+            opacity: 0.6;
+        }
+
+        .empty-state h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .empty-state p {
+            font-size: 0.9rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            transform: scale(0.95) translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-header {
+            padding: 24px 24px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .modal-body {
+            padding: 20px 24px 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 200px;
+            line-height: 1.7;
+        }
+
+        .emoji-picker {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 10px;
+            background: var(--bg);
+            border-radius: var(--radius-sm);
+            border: 2px solid var(--border);
+        }
+
+        .emoji-option {
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+            background: none;
+        }
+
+        .emoji-option:hover {
+            background: white;
+            transform: scale(1.2);
+        }
+
+        .emoji-option.selected {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .modal-footer {
+            padding: 0 24px 24px;
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(91,140,90,0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .btn-danger {
+            background: #FFEBEE;
+            color: #C0392B;
+        }
+
+        .btn-danger:hover {
+            background: #C0392B;
+            color: white;
+        }
+
+        /* View Modal */
+        .view-content {
+            font-family: 'Noto Serif SC', serif;
+            font-size: 1.05rem;
+            line-height: 1.8;
+            color: var(--text);
+            white-space: pre-wrap;
+            padding: 16px 0;
+        }
+
+        .view-meta {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 12px;
+        }
+
+        .view-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .view-meta-item .emoji {
+            font-size: 1.2rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container {
+                padding: 12px;
+            }
+            .calendar-section, .diary-section {
+                padding: 16px;
+                border-radius: 12px;
+            }
+            .calendar-day .day-emoji {
+                font-size: 1.1rem;
+            }
+            .current-month {
+                font-size: 1.1rem;
+                min-width: 120px;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .diary-card {
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .calendar-day {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div>
+                <h1>我的日记</h1>
+                <div class="subtitle">记录生活的每一个瞬间</div>
+            </div>
+            <button class="btn-add" onclick="openAddModal()" title="写新日记">+</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Calendar -->
+        <div class="calendar-section">
+            <div class="calendar-header">
+                <div class="month-nav">
+                    <button class="nav-btn" onclick="changeMonth(-1)">◀</button>
+                    <div class="current-month" id="currentMonth"></div>
+                    <button class="nav-btn" onclick="changeMonth(1)">▶</button>
+                </div>
+                <button class="today-btn" onclick="goToToday()">回到今天</button>
+            </div>
+            <div class="weekdays">
+                <div class="weekday">一</div>
+                <div class="weekday">二</div>
+                <div class="weekday">三</div>
+                <div class="weekday">四</div>
+                <div class="weekday">五</div>
+                <div class="weekday weekend">六</div>
+                <div class="weekday weekend">日</div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <!-- Diary List -->
+        <div class="diary-section">
+            <div class="section-title">
+                <span class="emoji">📝</span>
+                <span id="diaryListTitle">本月日记</span>
+            </div>
+            <div id="diaryList"></div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="editModalTitle">写新日记</div>
+                <button class="modal-close" onclick="closeModal('editModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">日期</label>
+                    <input type="date" class="form-input" id="entryDate">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">心情 / 标签</label>
+                    <div class="emoji-picker" id="emojiPicker">
+                        <button class="emoji-option selected" data-emoji="📝">📝</button>
+                        <button class="emoji-option" data-emoji="😊">😊</button>
+                        <button class="emoji-option" data-emoji="😢">😢</button>
+                        <button class="emoji-option" data-emoji="😡">😡</button>
+                        <button class="emoji-option" data-emoji="😴">😴</button>
+                        <button class="emoji-option" data-emoji="🎉">🎉</button>
+                        <button class="emoji-option" data-emoji="💪">💪</button>
+                        <button class="emoji-option" data-emoji="🌧️">🌧️</button>
+                        <button class="emoji-option" data-emoji="☀️">☀️</button>
+                        <button class="emoji-option" data-emoji="❤️">❤️</button>
+                        <button class="emoji-option" data-emoji="🎵">🎵</button>
+                        <button class="emoji-option" data-emoji="🍔">🍔</button>
+                        <button class="emoji-option" data-emoji="✈️">✈️</button>
+                        <button class="emoji-option" data-emoji="📚">📚</button>
+                        <button class="emoji-option" data-emoji="🏃">🏃</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">标题</label>
+                    <input type="text" class="form-input" id="entryTitle" placeholder="给今天起个标题...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">内容</label>
+                    <textarea class="form-textarea" id="entryContent" placeholder="写下今天的故事..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editModal')">取消</button>
+                <button class="btn btn-danger" id="deleteBtn" style="display:none" onclick="deleteEntry()">删除</button>
+                <button class="btn btn-primary" onclick="saveEntry()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Modal -->
+    <div class="modal-overlay" id="viewModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="viewTitle">日记详情</div>
+                <button class="modal-close" onclick="closeModal('viewModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="view-meta">
+                    <div class="view-meta-item">
+                        <span class="emoji" id="viewEmoji">📝</span>
+                        <span id="viewDate"></span>
+                    </div>
+                    <div class="view-meta-item">
+                        <span>🕐</span>
+                        <span id="viewTime"></span>
+                    </div>
+                </div>
+                <div class="view-content" id="viewContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('viewModal')">关闭</button>
+                <button class="btn btn-primary" onclick="editFromView()">编辑</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data storage (using localStorage)
+        const STORAGE_KEY = 'myDiary_entries';
+        let currentDate = new Date();
+        let editingId = null;
+        let viewingId = null;
+        let selectedEmoji = '📝';
+
+        // Demo data
+        const demoData = [
+            {
+                id: 'demo1',
+                date: new Date().toISOString().split('T')[0],
+                title: '开始使用新日记本',
+                content: '今天开始用这个新的日记应用记录生活。界面很清新，操作也很流畅。希望能坚持记录每一天的美好瞬间。\n\n下午去公园散步，看到了很美的夕阳，心情特别好。',
+                emoji: '🌅',
+                createdAt: new Date().toISOString()
+            },
+            {
+                id: 'demo2',
+                date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+                title: '忙碌的工作日',
+                content: '今天工作特别忙，开了三个会议，处理了一堆邮件。虽然很累，但完成了一个重要的项目里程碑，感觉很有成就感。\n\n晚上和朋友去吃了火锅，聊了很多有趣的事情，是放松的一天。',
+                emoji: '💪',
+                createdAt: new Date(Date.now() - 86400000).toISOString()
+            },
+            {
+                id: 'demo3',
+                date: new Date(Date.now() - 86400000).toISOString().split('T')[0],
+                title: '读了一本好书',
+                content: '晚上读完了《百年孤独》，马尔克斯的魔幻现实主义真的很震撼。那种孤独感贯穿全书，让人深思。\n\n准备下周开始读新的书。',
+                emoji: '📚',
+                createdAt: new Date(Date.now() - 86400000 + 3600000).toISOString()
+            }
+        ];
+
+        function getEntries() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (!stored) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(demoData));
+                return demoData;
+            }
+            return JSON.parse(stored);
+        }
+
+        function saveEntries(entries) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+        }
+
+        function getMonthEntries(year, month) {
+            const entries = getEntries();
+            return entries.filter(e => {
+                const d = new Date(e.date);
+                return d.getFullYear() === year && d.getMonth() === month;
+            }).sort((a, b) => new Date(b.date + 'T' + (b.createdAt || '').split('T')[1]) - new Date(a.date + 'T' + (a.createdAt || '').split('T')[1]));
+        }
+
+        function getDayEntries(dateStr) {
+            const entries = getEntries();
+            return entries.filter(e => e.date === dateStr).sort((a, b) => {
+                const ta = a.createdAt || '';
+                const tb = b.createdAt || '';
+                return ta.localeCompare(tb);
+            });
+        }
+
+        function getDayEmoji(dateStr) {
+            const dayEntries = getDayEntries(dateStr);
+            if (dayEntries.length === 0) return null;
+            // Return the emoji of the first entry, or most frequent
+            const emojiCount = {};
+            dayEntries.forEach(e => {
+                emojiCount[e.emoji] = (emojiCount[e.emoji] || 0) + 1;
+            });
+            return Object.entries(emojiCount).sort((a, b) => b[1] - a[1])[0][0];
+        }
+
+        // Calendar
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+
+            document.getElementById('currentMonth').textContent = 
+                `${year}年 ${month + 1}月`;
+
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+
+            const prevMonthLastDay = new Date(year, month, 0).getDate();
+
+            // Previous month days
+            for (let i = startDay - 1; i >= 0; i--) {
+                const day = prevMonthLastDay - i;
+                const cell = createDayCell(day, true);
+                grid.appendChild(cell);
+            }
+
+            // Current month days
+            const today = new Date();
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+                const emoji = getDayEmoji(dateStr);
+                const dayEntries = getDayEntries(dateStr);
+
+                const cell = createDayCell(day, false, isToday, emoji, dayEntries.length, dateStr);
+                grid.appendChild(cell);
+            }
+
+            // Next month days
+            const totalCells = startDay + lastDay.getDate();
+            const remainingCells = 42 - totalCells;
+            for (let day = 1; day <= remainingCells; day++) {
+                const cell = createDayCell(day, true);
+                grid.appendChild(cell);
+            }
+        }
+
+        function createDayCell(day, isOtherMonth, isToday = false, emoji = null, count = 0, dateStr = null) {
+            const cell = document.createElement('div');
+            cell.className = 'calendar-day';
+            if (isOtherMonth) cell.classList.add('other-month');
+            if (isToday) cell.classList.add('today');
+            if (emoji) cell.classList.add('has-entry');
+
+            cell.innerHTML = `
+                <div class="day-number">${day}</div>
+                ${emoji ? `<div class="day-emoji">${emoji}</div>` : ''}
+                ${count > 1 ? `<div class="entry-count">${count}</div>` : ''}
+            `;
+
+            if (!isOtherMonth && dateStr) {
+                cell.onclick = () => openAddModal(dateStr);
+            }
+
+            return cell;
+        }
+
+        // Diary List
+        function renderDiaryList() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const entries = getMonthEntries(year, month);
+            const container = document.getElementById('diaryList');
+
+            document.getElementById('diaryListTitle').textContent = `${year}年${month + 1}月日记`;
+
+            if (entries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <span class="emoji">🌱</span>
+                        <h3>这个月还没有日记</h3>
+                        <p>点击右上角的 + 按钮，或者点击日历上的日期来开始记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group by date
+            const grouped = {};
+            entries.forEach(entry => {
+                if (!grouped[entry.date]) grouped[entry.date] = [];
+                grouped[entry.date].push(entry);
+            });
+
+            const sortedDates = Object.keys(grouped).sort().reverse();
+
+            container.innerHTML = sortedDates.map((date, groupIndex) => {
+                const dateObj = new Date(date);
+                const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                const weekday = weekdays[dateObj.getDay()];
+
+                const cards = grouped[date].map((entry, index) => `
+                    <div class="diary-card" onclick="openViewModal('${entry.id}')" style="animation-delay: ${(groupIndex * 0.1) + (index * 0.05)}s">
+                        <div class="diary-card-header">
+                            <div class="diary-title">
+                                <span class="diary-emoji">${entry.emoji}</span>
+                                ${entry.title || '无标题'}
+                            </div>
+                            <div class="diary-time">${entry.createdAt ? new Date(entry.createdAt).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'}) : ''}</div>
+                        </div>
+                        <div class="diary-preview">${entry.content}</div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="diary-group">
+                        <div class="diary-date-header">
+                            <span class="date-badge">${dateObj.getMonth() + 1}月${dateObj.getDate()}日</span>
+                            <span class="date-weekday">${weekday}</span>
+                        </div>
+                        ${cards}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Navigation
+        function changeMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendar();
+            renderDiaryList();
+        }
+
+        function goToToday() {
+            currentDate = new Date();
+            renderCalendar();
+            renderDiaryList();
+        }
+
+        // Modal Functions
+        function openAddModal(dateStr = null) {
+            editingId = null;
+            document.getElementById('editModalTitle').textContent = '写新日记';
+            document.getElementById('entryDate').value = dateStr || new Date().toISOString().split('T')[0];
+            document.getElementById('entryTitle').value = '';
+            document.getElementById('entryContent').value = '';
+            document.getElementById('deleteBtn').style.display = 'none';
+
+            // Reset emoji selection
+            document.querySelectorAll('.emoji-option').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.emoji === '📝');
+            });
+            selectedEmoji = '📝';
+
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function openEditModal(id) {
+            const entries = getEntries();
+            const entry = entries.find(e => e.id === id);
+            if (!entry) return;
+
+            editingId = id;
+            document.getElementById('editModalTitle').textContent = '编辑日记';
+            document.getElementById('entryDate').value = entry.date;
+            document.getElementById('entryTitle').value = entry.title || '';
+            document.getElementById('entryContent').value = entry.content || '';
+            document.getElementById('deleteBtn').style.display = 'inline-block';
+
+            // Set emoji
+            document.querySelectorAll('.emoji-option').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.emoji === entry.emoji);
+            });
+            selectedEmoji = entry.emoji;
+
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function openViewModal(id) {
+            const entries = getEntries();
+            const entry = entries.find(e => e.id === id);
+            if (!entry) return;
+
+            viewingId = id;
+            document.getElementById('viewTitle').textContent = entry.title || '无标题';
+            document.getElementById('viewEmoji').textContent = entry.emoji;
+            document.getElementById('viewDate').textContent = entry.date;
+            document.getElementById('viewTime').textContent = entry.createdAt ? 
+                new Date(entry.createdAt).toLocaleString('zh-CN') : '';
+            document.getElementById('viewContent').textContent = entry.content;
+
+            document.getElementById('viewModal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function editFromView() {
+            closeModal('viewModal');
+            setTimeout(() => openEditModal(viewingId), 300);
+        }
+
+        function saveEntry() {
+            const date = document.getElementById('entryDate').value;
+            const title = document.getElementById('entryTitle').value.trim();
+            const content = document.getElementById('entryContent').value.trim();
+
+            if (!content) {
+                alert('请填写日记内容');
+                return;
+            }
+
+            const entries = getEntries();
+
+            if (editingId) {
+                const index = entries.findIndex(e => e.id === editingId);
+                if (index !== -1) {
+                    entries[index] = {
+                        ...entries[index],
+                        date,
+                        title,
+                        content,
+                        emoji: selectedEmoji
+                    };
+                }
+            } else {
+                entries.push({
+                    id: 'entry_' + Date.now(),
+                    date,
+                    title,
+                    content,
+                    emoji: selectedEmoji,
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            saveEntries(entries);
+            closeModal('editModal');
+            renderCalendar();
+            renderDiaryList();
+        }
+
+        function deleteEntry() {
+            if (!editingId) return;
+            if (!confirm('确定要删除这篇日记吗？')) return;
+
+            const entries = getEntries().filter(e => e.id !== editingId);
+            saveEntries(entries);
+            closeModal('editModal');
+            renderCalendar();
+            renderDiaryList();
+        }
+
+        // Emoji picker
+        document.getElementById('emojiPicker').addEventListener('click', (e) => {
+            if (e.target.classList.contains('emoji-option')) {
+                document.querySelectorAll('.emoji-option').forEach(btn => btn.classList.remove('selected'));
+                e.target.classList.add('selected');
+                selectedEmoji = e.target.dataset.emoji;
+            }
+        });
+
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+            }
+        });
+
+        // Initialize
+        renderCalendar();
+        renderDiaryList();
+    </script>
+</body>
+</html>
